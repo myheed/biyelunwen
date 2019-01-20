@@ -1,15 +1,18 @@
+from datetime import datetime
+
 BLACK = "BLACK"
 RED = "RED"
 
 
 class RBnode(object):
-    def __init__(self, ID=None, name=None, start=float("-inf"), end=float("-inf"), color=BLACK):
+    def __init__(self, ID=None, parking_id=None, start_time=datetime(2000, 1, 1, 0, 0, 0),
+                 end_time=datetime(2000, 1, 1, 0, 0, 0), color=BLACK):
         super(RBnode, self).__init__()
         self.id = ID
-        self.name = name
-        self.start = start
-        self.end = end
-        self.max = end
+        self.parking_id = parking_id
+        self.start_time = start_time
+        self.end_time = end_time
+        self.max = end_time
         self.left = None
         self.right = None
         self.parent = None
@@ -38,7 +41,7 @@ class RBtree(object):
             x.parent = y
             # update max
             y.max = x.max
-            x.max = max(x.end, x.left.max, x.right.max)
+            x.max = max(x.end_time, x.left.max, x.right.max)
 
     def right_rotate(self, y):
         '''右旋'''
@@ -58,7 +61,7 @@ class RBtree(object):
             x.right = y
             # update max
             x.max = y.max
-            y.max = max(y.end, y.left.max, y.right.max)
+            y.max = max(y.end_time, y.left.max, y.right.max)
 
     def rb_insert(self, z):
         '''插入z节点'''
@@ -69,11 +72,11 @@ class RBtree(object):
         while x is not self.nil:
             x.max = max(x.max, z.max)  # 插入z时更新max值
             y = x
-            x = (x.left if x.start > z.start else x.right)
+            x = (x.left if x.start_time > z.start_time else x.right)
         z.parent = y
         if y is self.nil:
             self.root = z
-        elif y.start > z.start:
+        elif y.start_time > z.start_time:
             y.left = z
         else:
             y.right = z
@@ -182,14 +185,14 @@ class RBtree(object):
             self.rb_transplant(z, z.right)
             p = x.parent
             while p.max == z.max:
-                p.max = max(p.left.max, p.right.max, p.end)
+                p.max = max(p.left.max, p.right.max, p.end_time)
                 p = p.parent
         elif z.right is self.nil:
             x = z.left
             self.rb_transplant(z, z.left)
             p = x.parent
             while p.max == z.max:
-                p.max = max(p.left.max, p.right.max, p.end)
+                p.max = max(p.left.max, p.right.max, p.end_time)
                 p = p.parent
         else:
             y = self.minimum(z.right)
@@ -205,17 +208,17 @@ class RBtree(object):
                 y.parent = self.nil
                 p = x.parent
                 while p.max == y.max:
-                    p.max = max(p.left.max, p.right.max, p.end)
+                    p.max = max(p.left.max, p.right.max, p.end_time)
                     p = p.parent
             self.rb_transplant(z, y)
             y.left = z.left
             y.left.parent = y
             y.color = z.color
 
-            y.max = max(y.left.max, y.right.max, y.end)
+            y.max = max(y.left.max, y.right.max, y.end_time)
             p = y.parent
             while p.max == z.max:
-                p.max = max(p.left.max, p.right.max, p.end)
+                p.max = max(p.left.max, p.right.max, p.end_time)
                 p = p.parent
 
         if y_origimal_color is BLACK:
@@ -245,79 +248,103 @@ class RBtree(object):
         '''中序遍历输出'''
         if x is not self.nil:
             self.inorder_traversal(x=x.left)
-            print("id:{:<4} name:{:<14} start:{:<4} end:{:<4} max:{:<4} color:{:<5}".format(
-                x.id, x.name, x.start, x.end, x.max, x.color))
+            print("id:{} parking_id:{:<14} start_time:{} end_time:{} max:{} color:{:<5}".format(
+                x.id, x.parking_id, x.start_time, x.end_time, x.max, x.color))
             self.inorder_traversal(x=x.right)
 
-    def is_overlap(self, x, start, end):
-        '''if x 交叉 [start,end] return True else False'''
-        return x.end >= start and x.start <= end
+    def preorder_traversal(self, x):
+        '''先序遍历输出'''
+        if x is not self.nil:
+            print("id:{} parking_id:{:<14} start_time:{} end_time:{} max:{} color:{:<5}".format(
+                x.id, x.parking_id, x.start_time, x.end_time, x.max, x.color))
+            self.inorder_traversal(x=x.left)
+            self.inorder_traversal(x=x.right)
 
-    def interval_search(self, start=float("-inf"), end=float("-inf")):
-        '''查询[start,end]区间内一个的课程'''
+    def is_overlap(self, x, start_time, end_time):
+        '''if x 交叉 [start_time,end_time] return True else False'''
+
+        s = max(start_time, x.start_time)
+        e = min(end_time, x.end_time)
+        return e > s and ((e - s) / (max(end_time, x.end_time) - min(start_time, x.start_time))) > 0.6  # 覆盖率低于0.6的直接舍去
+
+    def interval_search(self, start_time, end_time):
+        '''查询[start_time,end_time]区间内一个的课程'''
         x = self.root
-        while (x is not self.nil) and (not self.is_overlap(x, start, end)):
-            if (x.left is not self.nil) and (x.left.max >= start):
+        while (x is not self.nil) and (not self.is_overlap(x, start_time, end_time)):
+            if (x.left is not self.nil) and (x.left.max >= start_time):
                 x = x.left
             else:
                 x = x.right
         return x
 
-    def minstart(self, x):
+    def minstart_time(self, x):
         if x is self.nil:
-            return x.start
+            return x.start_time
         while x is not self.nil:
             y = x
             x = x.left
-        return y.start
+        return y.start_time
 
-    def search(self, x, start=float("-inf"), end=float("-inf"), all=[]):
+    def search(self, x, start_time, end_time, all=[]):
         '''search all 利用区间树性质'''
-        if self.is_overlap(x, start, end):
+        if self.is_overlap(x, start_time, end_time):
             all.append(x)
-        if x is not self.nil and start <= x.left.max and end >= self.minstart(x):
-            # 深度不深时可以放弃end>self.minstart(x)的比较
-            self.search(x.left, start, end, all)
-        if x is not self.nil and end >= x.start and start <= x.right.max:
-            self.search(x.right, start, end, all)
+        if x is not self.nil and start_time <= x.left.max and end_time >= self.minstart_time(x):
+            # 深度不深时可以放弃end_time>self.minstart_time(x)的比较
+            self.search(x.left, start_time, end_time, all)
+        if x is not self.nil and end_time >= x.start_time and start_time <= x.right.max:
+            self.search(x.right, start_time, end_time, all)
 
-    def search_all(self, x, start=float("-inf"), end=float("-inf"), delete=[]):
-        '''查询与[start,end]有交集的所有课程 利用中序遍历'''
+    def search_all(self, x, start_time, end_time, delete=[]):
+        '''查询与[start_time,end_time]有交集的所有课程 利用中序遍历'''
         if x is not self.nil:
-            self.search_all(x.left, start, end, delete)
-            if self.is_overlap(x, start, end):
-                print("id:{:<4} name:{:<14} start:{:<4} end:{:<4} color:{:<5}".format(
-                    x.id, x.name, x.start, x.end, x.color))
+            self.search_all(x.left, start_time, end_time, delete)
+            if self.is_overlap(x, start_time, end_time):
+                print("id:{} parking_id:{:<14} start_time:{} end_time:{} color:{:<5}".format(
+                    x.id, x.parking_id, x.start_time, x.end_time, x.color))
                 delete.append(x)
-            self.search_all(x.right, start, end, delete)
+            self.search_all(x.right, start_time, end_time, delete)
 
-    def search_id(self, x, id, delete):
-        '''利用中序遍历删除固定的id课程'''
-        if x is not self.nil:
-            self.search_id(x.left, id, delete)
-            if x.id == id:
-                delete.append(x)
-            self.search_id(x.right, id, delete)
+    def search_less_than(self, x, time_less_than, lt_list=[]):
+        if x is self.nil:
+            return
+        if self.minstart_time(x) > time_less_than:
+            return
+        if x.start_time >= time_less_than:
+            self.search_less_than(x.left, time_less_than, lt_list)
+        else:
+            if x.end_time <= time_less_than:
+                lt_list.append(x)
+            self.search_less_than(x.left, time_less_than, lt_list)
+            self.search_less_than(x.right, time_less_than, lt_list)
+
+
+def search_id(self, x, id, delete):
+    '''利用中序遍历删除固定的id课程'''
+    if x is not self.nil:
+        self.search_id(x.left, id, delete)
+        if x.id == id:
+            delete.append(x)
+        self.search_id(x.right, id, delete)
 
 
 def command(Tree):
     '''
-     insert id name start end
+     insert id name start_time end_time
      delete id
-     del start end
-     search all start end
-     search one start end
+     del start_time end_time
+     search all start_time end_time
+     search one start_time end_time
      exit
      '''
 
     while True:
-        print("\n")
         print(
-            "\n\nyou can do :\n insert id name start end \n delete id \n del start end\n search all start end\n search one start end\n exit")
+            "\n\nyou can do :\n insert id parking_id start_time end_time \n delete id \n del start_time end_time\n search all start_time end_time\n search lt lt_time\n search one start_time end_time\n exit")
         command = list(input().split())
         if command[0] == "insert":
-            x = RBnode(command[1], command[2], float(
-                command[3]), float(command[4]))
+            x = RBnode(command[1], command[2],
+                       command[3], command[4])
             Tree.rb_insert(x)
             print("after insert :")
             Tree.inorder_traversal(Tree.root)
@@ -335,8 +362,8 @@ def command(Tree):
 
         elif command[0] == "del":
             delete = []
-            Tree.search(Tree.root, float(
-                command[1]), float(command[2]), delete)
+            Tree.search(Tree.root,
+                        command[1], command[2], delete)
             if len(delete) < 1:
                 print("delete error\n")
             else:
@@ -348,22 +375,30 @@ def command(Tree):
         elif command[0] == "search":
             if command[1] == "all":
                 all = []
-                Tree.search(Tree.root, float(
-                    command[2]), float(command[3]), all)
+                Tree.search(Tree.root, command[2], command[3], all)
                 if len(all) == 0:
                     print("There is no class at this time")
                 else:
                     while len(all) != 0:
                         x = all.pop(-1)
-                        print("id:{:<4} name:{:<14} start:{:<4} end:{:<4} color:{:<5}".format(
-                            x.id, x.name, x.start, x.end, x.color))
-
+                        print("id:{} parking_id:{:<14} start_time:{} end_time:{} color:{:<5}".format(
+                            x.id, x.parking_id, x.start_time, x.end_time, x.color))
+            if command[1] == "lt":
+                lt_list = []
+                Tree.search_less_than(Tree.root, command[2], lt_list)
+                if len(lt_list) == 0:
+                    print("There is no class at this time")
+                else:
+                    while len(lt_list) != 0:
+                        x = lt_list.pop(-1)
+                        print("id:{} parking_id:{:<14} start_time:{} end_time:{} color:{:<5}".format(
+                            x.id, x.parking_id, x.start_time, x.end_time, x.color))
             if command[1] == "one":
-                x = Tree.interval_search(start=float(
-                    command[2]), end=float(command[3]))
+                x = Tree.interval_search(start_time=
+                                         command[2], end_time=command[3])
                 if x is not Tree.nil:
-                    print("id:{:<4} name:{:<14} start:{:<4} end:{:<4} color:{:<5}".format(
-                        x.id, x.name, x.start, x.end, x.color))
+                    print("id:{} parking_id:{:<14} start_time:{} end_time:{} color:{:<5}".format(
+                        x.id, x.parking_id, x.start_time, x.end_time, x.color))
                 else:
                     print("There is no class at this time")
 
@@ -375,19 +410,49 @@ def command(Tree):
 
 def main():
     course = {
-        "1": ("one", 16, 21), "2": ("two", 8, 9),
-        "3": ("three", 25, 30), "4": ("four", 5, 8),
-        "5": ("five", 15, 23), "6": ("six", 17, 19),
-        "7": ("seven", 26, 26), "8": ("eight", 0, 3),
-        "9": ("nine", 6, 10), "10": ("ten", 19, 20)}
+        "1": ("one", datetime(2000, 1, 1, 0, 16, 0), datetime(2000, 1, 1, 0, 21, 0)),
+        "2": ("two", datetime(2000, 1, 1, 0, 8, 0), datetime(2000, 1, 1, 0, 9, 0)),
+        "3": ("three", datetime(2000, 1, 1, 0, 25, 0), datetime(2000, 1, 1, 0, 30, 0)),
+        "4": ("four", datetime(2000, 1, 1, 0, 5, 0), datetime(2000, 1, 1, 0, 8, 0)),
+        "5": ("five", datetime(2000, 1, 1, 0, 15, 0), datetime(2000, 1, 1, 0, 23, 0)),
+        "6": ("six", datetime(2000, 1, 1, 0, 17, 0), datetime(2000, 1, 1, 0, 19, 0)),
+        "7": ("seven", datetime(2000, 1, 1, 0, 26, 0), datetime(2000, 1, 1, 0, 27, 0)),
+        "8": ("eight", datetime(2000, 1, 1, 0, 0, 0), datetime(2000, 1, 1, 0, 3, 0)),
+        "9": ("nine", datetime(2000, 1, 1, 0, 6, 0), datetime(2000, 1, 1, 0, 10, 0)),
+        "10": ("ten", datetime(2000, 1, 1, 0, 19, 0), datetime(2000, 1, 1, 0, 20, 0))}
 
-    Tree = RBtree()  # Tree.left.start < Tree.start <= Tree.right.start
+    Tree = RBtree()  # Tree.left.start_time < Tree.start_time <= Tree.right.start_time
     for i in course.keys():
         node = RBnode(i, *course[i])
         Tree.rb_insert(node)
     print("\n\n初始树为：")
-    Tree.inorder_traversal(Tree.root)
-    command(Tree)
+    Tree.preorder_traversal(Tree.root)
+    #
+    # x = RBnode(11, "eleven", datetime(2000, 1, 1, 0, 8, 0), datetime(2000, 1, 1, 0, 20, 0))
+    # Tree.rb_insert(x)
+    # print("after insert :")
+    all = []
+    Tree.search_less_than(Tree.root, datetime(2000, 1, 1, 0, 8, 0), all)
+    print("\n\n删除前：")
+
+    if len(all) == 0:
+        print("There is no class at this time")
+    else:
+        delete = []
+        delete += all
+        while len(all) != 0:
+            x = all.pop(-1)
+            print("id:{} parking_id:{:<14} start_time:{} end_time:{} color:{:<5}".format(
+                x.id, x.parking_id, x.start_time, x.end_time, x.color))
+    if len(delete) < 1:
+        print("delete error\n")
+    else:
+        while len(delete) != 0:
+            Tree.rb_delete(delete[-1])
+            delete.pop(-1)
+        print("after del:")
+        Tree.inorder_traversal(Tree.root)
+    # command(Tree)
 
 
 if __name__ == '__main__':

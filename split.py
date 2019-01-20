@@ -97,7 +97,7 @@ def split_parking(data, dat):
     #             if dat[i]['is_avail']:
     #                 print("{}is wrone".format(index.strptime('%Y-%m-%d %H:%M:%S')))
     #             else:
-    #                 dat[i]['is_vail'] = True
+    #                 dat[i]['is_vail'] = Tru e
 
 
 if __name__ == '__main__':
